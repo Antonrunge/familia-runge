@@ -187,7 +187,7 @@ var CAT_REC={
 };
 var PESSOAS=["Anton","Josiane","Mamãe","Casa","Cachorros","Marcos","Geovanna","Lorran","Geral"];
 var FORMAS=["Dinheiro","PIX","Débito","Crédito"];
-var NAV=[["dash","📊","Dashboard"],["livre","💰","Dinheiro Livre"],["lanc","📋","Lançamentos"],["cartoes","💳","Cartões"],["mamae","👵","Mamãe"],["familia","👨‍👩‍👧","Família"],["config","⚙️","Configurações"]];
+var NAV=[["dash","📊","Dashboard"],["livre","💰","Dinheiro Livre"],["lanc","📋","Lançamentos"],["cartoes","💳","Cartões"],["mamae","👵","Mamãe"],["familia","👨‍👩‍👧","Família"],["anton","👨","Anton"],["josiane","👩","Josiane"],["config","⚙️","Configurações"]];
 
 // Fixos pré-configurados (editáveis em Configurações)
 var FIXOS_REC_PAD=[
@@ -343,6 +343,8 @@ function rT(){
   else if(S.tab==="cartoes")h=rCartoes();
   else if(S.tab==="mamae")h=rMamae(lmR,lmD);
   else if(S.tab==="familia")h=rFamilia(lmD);
+  else if(S.tab==="anton")h=rPessoa("Anton","👨","#3b82f6",lm);
+  else if(S.tab==="josiane")h=rPessoa("Josiane","👩","#f472b6",lm);
   else if(S.tab==="config")h=rConfig();
   document.getElementById("ct").innerHTML=h;
 }
@@ -392,60 +394,59 @@ function rDash(lm,lmR,lmD){
     +'</div>';
 }
 
-// ── DINHEIRO LIVRE ───────────────────────────────────────────────────────────
+// ── DINHEIRO LIVRE (Opção B) ─────────────────────────────────────────────────
+// Saldo = Receitas lançadas − Fixos automáticos − Variáveis lançados
 function rLivre(lmR,lmD){
   var tR=lmR.reduce(function(s,r){return s+r.valor;},0);
-  var tD=lmD.reduce(function(s,r){return s+r.valor;},0);
+  var tVar=lmD.reduce(function(s,r){return s+r.valor;},0);
   var tFixD=totFixDesp();
   var tFixR=totFixRec();
-  // Saldo real = o que entrou - o que saiu
-  var saldoReal=tR-tD;
-  // Dinheiro livre estimado = receitas fixas referência - fixos comprometidos
-  var livreEstimado=tFixR-tFixD;
-  // Dinheiro livre atual = receitas lançadas - gastos lançados - (fixos ainda não lançados)
-  // Usamos: quanto resta depois de pagar tudo que já saiu + o que ainda tem que sair (fixos)
-  var tCartao=lmD.filter(function(r){return r.formaPagamento==="Crédito";}).reduce(function(s,r){return s+r.valor;},0);
-  var tVariavel=tD-tCartao;
-  // Livre = receitas - comprometimentos fixos - variáveis variáveis
-  var livre=tR-tFixD-Math.max(0,tVariavel-tFixD);
-  // Simplificado:
-  livre=tR-tD; // posição atual
-  var livreProj=tFixR-tFixD; // projeção mensal se pagar tudo
-  var corLivre=livre>=0?"#22c55e":"#f87171";
-  var corProj=livreProj>=0?"#22c55e":"#f87171";
+  var saldo=tR-tFixD-tVar;
+  var livreProj=tFixR-tFixD;
+  var corS=saldo>=0?"#22c55e":"#f87171";
+  var corP=livreProj>=0?"#22c55e":"#f87171";
+  var totalGeral=tFixD+tVar||1;
   var fixRows=getFixosDesp().map(function(f){
-    return'<div class="dl-row"><span class="dl-lbl">'+es(f.desc)+'</span><span class="dl-val" style="color:var(--red)">−'+fmt(f.valor)+'</span></div>';
+    var pct=Math.round(f.valor/totalGeral*100);
+    return'<div class="dl-row"><span class="dl-lbl"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#f87171;margin-right:6px"></span>'+es(f.desc)+'</span>'
+      +'<span style="display:flex;align-items:center;gap:10px"><span style="font-size:10px;color:var(--tx3);background:#27272a;padding:2px 6px;border-radius:10px">'+pct+'%</span>'
+      +'<span class="dl-val" style="color:var(--red)">−'+fmt(f.valor)+'</span></span></div>';
   }).join("");
-  return'<div class="pg"><div class="ph"><h2>💰 Dinheiro Livre — '+nomeMes()+'</h2></div>'
-    +'<div style="max-width:560px">'
-    // Receitas
+  var byCat={};lmD.forEach(function(r){var c=r.categoria||r.pessoa||"Outros";byCat[c]=(byCat[c]||0)+r.valor;});
+  var varRows=Object.keys(byCat).sort(function(a,b){return byCat[b]-byCat[a];}).map(function(cat){
+    var v=byCat[cat];var pct=Math.round(v/totalGeral*100);
+    return'<div class="dl-row"><span class="dl-lbl"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#fbbf24;margin-right:6px"></span>'+es(cat)+'</span>'
+      +'<span style="display:flex;align-items:center;gap:10px"><span style="font-size:10px;color:var(--tx3);background:#27272a;padding:2px 6px;border-radius:10px">'+pct+'%</span>'
+      +'<span class="dl-val" style="color:var(--yellow)">−'+fmt(v)+'</span></span></div>';
+  }).join("");
+  return'<div class="pg"><div class="ph"><h2>💰 Dinheiro Livre — '+nomeMes()+'</h2>'
+    +'<div style="font-size:12px;color:var(--tx3)">Saldo = Receitas − Fixos − Variáveis</div></div>'
+    +'<div class="g2" style="gap:12px">'
+    +'<div>'
     +'<div class="dl-bloco"><div class="dl-hdr" style="color:#22c55e;background:#052e16">📥 Receitas do Mês</div>'
     +'<div class="dl-row"><span class="dl-lbl">Receitas lançadas</span><span class="dl-val" style="color:#22c55e">+'+fmt(tR)+'</span></div>'
-    +'<div class="dl-row"><span class="dl-lbl" style="font-size:11px;color:var(--tx3)">Referência mensal (fixas)</span><span style="font-size:12px;color:var(--tx3)">'+fmt(tFixR)+'</span></div>'
+    +'<div class="dl-row" style="border-bottom:none"><span class="dl-lbl" style="color:var(--tx3);font-size:11px">Referência mensal</span><span style="color:var(--tx3);font-size:12px">'+fmt(tFixR)+'</span></div>'
     +'</div>'
-    // Fixos
-    +'<div class="dl-bloco"><div class="dl-hdr" style="color:var(--red);background:#450a0a">📤 Comprometimentos Fixos Mensais</div>'
+    +'<div class="dl-bloco"><div class="dl-total" style="border-top:none;padding:20px 16px">'
+    +'<div><div style="font-size:11px;color:var(--tx3);margin-bottom:4px">💰 SALDO REAL DO MÊS</div>'
+    +'<div style="font-size:10px;color:var(--tx3)">Receitas − Fixos automáticos − Variáveis lançados</div></div>'
+    +'<span style="font-size:26px;font-weight:800;color:'+corS+'">'+ fmt(saldo)+'</span></div></div>'
+    +'<div class="dl-bloco"><div class="dl-hdr" style="color:var(--cyan)">📆 Projeção Mensal</div>'
+    +'<div class="dl-row"><span class="dl-lbl">Receitas fixas</span><span class="dl-val" style="color:#22c55e">+'+fmt(tFixR)+'</span></div>'
+    +'<div class="dl-row"><span class="dl-lbl">(−) Total fixos</span><span class="dl-val" style="color:var(--red)">−'+fmt(tFixD)+'</span></div>'
+    +'<div class="dl-row" style="border-bottom:none"><span class="dl-lbl" style="font-weight:700">= Sobra p/ variáveis</span><span class="dl-val" style="color:'+corP+'">'+ fmt(livreProj)+'</span></div>'
+    +'</div>'
+    +'</div>'
+    +'<div>'
+    +'<div class="dl-bloco"><div class="dl-hdr" style="color:var(--red);background:#450a0a">📌 FIXOS AUTOMÁTICOS — '+fmt(tFixD)+'</div>'
     +fixRows
-    +'<div class="dl-row" style="background:#1c1c1e"><span class="dl-lbl" style="font-weight:700;color:var(--tx)">Total comprometido</span><span class="dl-val" style="color:var(--red)">−'+fmt(tFixD)+'</span></div>'
+    +'<div style="padding:10px 16px;font-size:10px;color:var(--tx3);border-top:1px solid var(--bd)">⚙️ Altere os valores em Configurações</div>'
     +'</div>'
-    // Variáveis
-    +'<div class="dl-bloco"><div class="dl-hdr" style="color:var(--yellow)">📊 Gastos Variáveis Lançados</div>'
-    +'<div class="dl-row"><span class="dl-lbl">Débito / PIX / Dinheiro</span><span class="dl-val" style="color:var(--yellow)">−'+fmt(tD-tCartao)+'</span></div>'
-    +'<div class="dl-row"><span class="dl-lbl">Cartões de crédito</span><span class="dl-val" style="color:var(--yellow)">−'+fmt(tCartao)+'</span></div>'
-    +'<div class="dl-row"><span class="dl-lbl" style="font-weight:700;color:var(--tx)">Total gasto</span><span class="dl-val" style="color:var(--yellow);font-weight:700">−'+fmt(tD)+'</span></div>'
-    +'</div>'
-    // Saldo
-    +'<div class="dl-bloco"><div class="dl-total"><span style="font-size:15px;font-weight:800;color:var(--tx)">💰 SALDO ATUAL</span><span style="font-size:22px;font-weight:800;color:'+corLivre+'">'+fmt(livre)+'</span></div></div>'
-    // Projeção
-    +'<div class="cd" style="margin-top:4px">'
-    +'<div class="ct">Projeção mensal (referência)</div>'
-    +'<div class="dl-row"><span class="dl-lbl">Receitas fixas estimadas</span><span class="dl-val" style="color:#22c55e">'+fmt(tFixR)+'</span></div>'
-    +'<div class="dl-row"><span class="dl-lbl">(-) Comprometimentos fixos</span><span class="dl-val" style="color:var(--red)">−'+fmt(tFixD)+'</span></div>'
-    +'<div class="dl-row" style="border-bottom:none"><span class="dl-lbl" style="font-weight:700">= Sobra para gastos variáveis</span><span class="dl-val" style="color:'+corProj+'">'+fmt(livreProj)+'</span></div>'
-    +'<div style="font-size:11px;color:var(--tx3);margin-top:8px;padding-top:8px;border-top:1px solid var(--bd)">💡 Com '+fmt(livreProj)+' para gastos variáveis, tente manter mercado + alimentação + outros abaixo desse valor.</div>'
-    +'</div>'
-    +(livre<0?'<div style="background:#450a0a;border:1px solid #7f1d1d;border-radius:10px;padding:14px;margin-top:4px;font-size:13px;color:#fca5a5">⚠️ Saldo negativo de '+fmt(Math.abs(livre))+'. Revise os gastos deste mês.</div>':'')
-    +'</div></div>';
+    +(tVar>0
+      ?'<div class="dl-bloco"><div class="dl-hdr" style="color:var(--yellow)">📊 VARIÁVEIS LANÇADOS — '+fmt(tVar)+'</div>'+varRows+'</div>'
+      :'<div class="cd"><div class="emp">Nenhum gasto variável lançado este mês.<br>Use ＋ Novo Lançamento para registrar.</div></div>')
+    +'</div></div>'
+    +(saldo<0?'<div style="background:#450a0a;border:1px solid #7f1d1d;border-radius:10px;padding:14px;margin-top:12px;font-size:13px;color:#fca5a5">⚠️ Saldo negativo em '+fmt(Math.abs(saldo))+'. Os variáveis ultrapassaram o que sobrou após os fixos.</div>':'')+'</div>';
 }
 
 // ── LANÇAMENTOS ──────────────────────────────────────────────────────────────
@@ -583,6 +584,57 @@ function rFamilia(lmD){
 }
 
 // ── CONFIGURAÇÕES ────────────────────────────────────────────────────────────
+
+// ── ABA PESSOA (Anton / Josiane) ─────────────────────────────────────────────
+function rPessoa(nome,emoji,cor,lm){
+  var lmP=lm.filter(function(r){return r.pessoa===nome;});
+  var rec=lmP.filter(function(r){return r.tipo==="receita";});
+  var desp=lmP.filter(function(r){return r.tipo==="despesa";});
+  var tR=rec.reduce(function(s,r){return s+r.valor;},0);
+  var tD=desp.reduce(function(s,r){return s+r.valor;},0);
+  var tot=tD||1;
+  // Por categoria com %
+  var byCat={};desp.forEach(function(r){var c=r.categoria||"Outros";byCat[c]=(byCat[c]||0)+r.valor;});
+  var catArr=Object.keys(byCat).map(function(k){return{n:k,v:byCat[k]};}).sort(function(a,b){return b.v-a.v;});
+  // Bloco percentual
+  var COLS=["#22d3ee","#22c55e","#f87171","#fbbf24","#a78bfa","#fb923c","#f472b6","#60a5fa","#34d399","#e879f9"];
+  var pctBlock=catArr.map(function(d,i){
+    var pct=Math.round(d.v/tot*100);
+    var col=COLS[i%COLS.length];
+    return'<div style="margin-bottom:12px">'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+      +'<span style="font-size:12px;color:var(--tx2)">'+es(d.n)+'</span>'
+      +'<span style="font-size:12px;font-weight:700;color:var(--tx)">'+pct+'% · '+fmt(d.v)+'</span>'
+      +'</div>'
+      +'<div class="prg-bg"><div class="prg-fill" style="width:'+pct+'%;background:'+col+'"></div></div>'
+      +'</div>';
+  }).join("");
+  var rows=desp.slice().sort(function(a,b){return(b.date||"").localeCompare(a.date||"");}).map(function(r){
+    return'<tr><td>'+fdt(r.date)+'</td><td style="color:var(--tx)">'+es(r.descricao)+'</td>'
+      +'<td>'+es(r.categoria||"")+'</td><td style="font-size:11px;color:var(--tx3)">'+es(r.formaPagamento||"")+'</td>'
+      +'<td class="neg">−'+fmt(r.valor)+'</td>'
+      +'<td><button class="eb" onclick="openLanc(\'"+r.id+"\')">✏️</button></td></tr>';
+  }).join("");
+  return'<div class="pg"><div class="ph"><h2>'+emoji+' '+nome+' — '+nomeMes()+'</h2>'
+    +'<button class="ab" onclick="openLanc()">＋ Novo</button></div>'
+    +'<div class="kg">'
+    +kp("Receitas",fmt(tR),rec.length+" lançamentos","#22c55e")
+    +kp("Gastos",fmt(tD),desp.length+" lançamentos","#f87171")
+    +kp("Saldo",fmt(tR-tD),"","#22d3ee")
+    +'</div>'
+    +'<div class="g2" style="gap:12px">'
+    +'<div class="cd"><div class="ct">📊 Percentual por Categoria</div>'
+    +(pctBlock||'<div class="emp">Nenhum gasto lançado para '+nome+'</div>')+'</div>'
+    +'<div class="cd"><div class="ct">Distribuição Visual</div>'+piC(catArr)+'</div>'
+    +'</div>'
+    +(desp.length
+      ?'<div class="cd" style="margin-top:0"><div class="ct">Lançamentos Detalhados</div>'
+      +'<div class="ox"><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Pgto</th><th style="text-align:right">Valor</th><th></th></tr></thead><tbody>'
+      +rows+'</tbody></table></div></div>'
+      :'<div class="cd"><div class="emp">Nenhum lançamento de '+nome+' neste mês.<br>Ao criar um lançamento, selecione "'+nome+'" no campo Pessoa.</div></div>')
+    +'</div>';
+}
+
 function rConfig(){
   var fr=getFixosRec(),fd=getFixosDesp();
   var I='background:var(--bg);border:1px solid var(--bd2);color:var(--tx);border-radius:7px;padding:8px 10px;font-size:13px;box-sizing:border-box;width:100%';
