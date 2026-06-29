@@ -509,7 +509,6 @@ function rLanc(lm){
   var tFauto=fauto.reduce(function(s,f){return s+f.valor;},0);
   var tR=lmR.reduce(function(s,r){return s+r.valor;},0)+tFauto;
   var tD=lmD.reduce(function(s,r){return s+r.valor;},0);
-  var saldoDisp=tR-totFixDesp()-tD;
   // Linhas dos fixos automáticos de receita (aparecem no topo, marcados como AUTO)
   var autoRows=(f==="despesa"?"":fauto.map(function(fx){
     return'<tr style="opacity:0.8">'
@@ -738,7 +737,7 @@ function rPessoa(nome,emoji,cor,lm){
     +(rec.length
       ?'<div class="ox"><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th style="text-align:right">Valor</th><th></th></tr></thead><tbody>'+recRows+'</tbody></table></div>'
       :'<div style="padding:10px 0"><div style="font-size:13px;color:var(--tx2)">Salário referência: <b style="color:#22c55e">'+fmt(salRef)+'</b></div></div>')
-    +'<button onclick="openLancRec(\''+nome+'\') style="margin-top:10px;cursor:pointer;background:#052e16;color:#86efac;border:1px solid #166634;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:600">＋ Salário / Comissão</button>'
+    +'<button onclick="openLancRec(\''+nome+'\')" style="margin-top:10px;cursor:pointer;background:#052e16;color:#86efac;border:1px solid #166634;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:600">＋ Salário / Comissão</button>'
     +'</div>'
     +'<div>'
     +'<div class="cd"><div class="ct">📊 Percentual por Categoria</div>'
