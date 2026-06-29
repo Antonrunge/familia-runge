@@ -224,7 +224,14 @@ function cmod(){var o=document.getElementById("ov");o.style.display="none";o.inn
 function mhdr(t){return'<div class="mh"><h2>'+t+'</h2><button class="xb" onclick="cmod()">×</button></div>';}
 function kp(l,v,s,cor){return'<div class="kc"'+(cor?'style="border-left-color:'+cor+'"':'')+'>'+
   '<div class="kl">'+l+'</div><div class="kv">'+v+'</div>'+(s?'<div class="ks">'+s+'</div>':'')+'</div>';}
-function getFixosRec(){return D.fixosRec||FIXOS_REC_PAD;}
+function getFixosRec(){
+  var fr=D.fixosRec||FIXOS_REC_PAD;
+  // Migração automática: Ajuda do Irmão sempre pertence à Mamãe
+  fr.forEach(function(f){
+    if((f.desc||"").toLowerCase().indexOf("irm")>=0&&f.pessoa!=="Mamãe"){f.pessoa="Mamãe";}
+  });
+  return fr;
+}
 function getFixosDesp(){return D.fixosDesp||FIXOS_DESP_PAD;}
 function totFixRec(){return getFixosRec().reduce(function(s,f){return s+f.valor;},0);}
 function totFixDesp(){return getFixosDesp().reduce(function(s,f){return s+f.valor;},0);}
