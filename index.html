@@ -194,7 +194,7 @@ var FIXOS_REC_PAD=[
   {desc:"Salário Anton",valor:3600,pessoa:"Anton"},
   {desc:"Salário Josiane",valor:3600,pessoa:"Josiane"},
   {desc:"LOAS",valor:1500,pessoa:"Mamãe"},
-  {desc:"Ajuda do Irmão",valor:750,pessoa:"Geral"}
+  {desc:"Ajuda do Irmão",valor:750,pessoa:"Mamãe"}
 ];
 var FIXOS_DESP_PAD=[
   {desc:"Aluguel",valor:3202.50,pessoa:"Casa"},
@@ -593,90 +593,114 @@ function rFamilia(lmD){
 // Saldo individual = Receitas próprias − Metade fixos casa − Gastos próprios
 // Fixos da Mamãe são cobertos pela receita da Mamãe (LOAS + irmão), não divididos
 function rPessoa(nome,emoji,cor,lm){
-  var rec=lm.filter(function(r){return r.tipo==="receita"&&r.pessoa===nome;});
-  var desp=lm.filter(function(r){return r.tipo==="despesa"&&r.pessoa===nome;});
+  var catsRec=nome==="Anton"?CAT_REC["Anton"]:nome==="Josiane"?CAT_REC["Josiane"]:[];
+  var recIds={};
+  var rec=lm.filter(function(r){
+    if(r.tipo!=="receita")return false;
+    var match=r.pessoa===nome||(catsRec.indexOf(r.categoria)>=0);
+    if(!match||recIds[r.id])return false;
+    recIds[r.id]=true;return true;
+  });
+  var despProp=lm.filter(function(r){return r.tipo==="despesa"&&r.pessoa===nome;});
+  var despCasa=lm.filter(function(r){return r.tipo==="despesa"&&r.pessoa==="Casa";});
   var tR=rec.reduce(function(s,r){return s+r.valor;},0);
-  var tVar=desp.reduce(function(s,r){return s+r.valor;},0);
+  var tProp=despProp.reduce(function(s,r){return s+r.valor;},0);
+  var tCasaMetade=despCasa.reduce(function(s,r){return s+r.valor;},0)/2;
+  var tVar=tProp+tCasaMetade;
   var fixosCasa=getFixosDesp().filter(function(f){return f.pessoa!=="Mamãe";});
   var metadeFixos=fixosCasa.reduce(function(s,f){return s+f.valor;},0)/2;
   var salRef=getFixosRec().filter(function(f){return f.pessoa===nome;}).reduce(function(s,f){return s+f.valor;},0);
   var saldo=tR-metadeFixos-tVar;
   var corS=saldo>=0?"#22c55e":"#f87171";
-  var tot=tVar||1;
-  var byCat={};desp.forEach(function(r){var c=r.categoria||"Outros";byCat[c]=(byCat[c]||0)+r.valor;});
+  var byCat={};
+  despProp.forEach(function(r){var c=r.categoria||"Outros";byCat[c]=(byCat[c]||0)+r.valor;});
+  despCasa.forEach(function(r){var c=(r.categoria||"Outros")+" (Casa÷2)";byCat[c]=(byCat[c]||0)+r.valor/2;});
   var catArr=Object.keys(byCat).map(function(k){return{n:k,v:byCat[k]};}).sort(function(a,b){return b.v-a.v;});
+  var tot=tVar||1;
   var COLS=["#22d3ee","#22c55e","#f87171","#fbbf24","#a78bfa","#fb923c","#f472b6","#60a5fa","#34d399","#e879f9"];
   var pctBlock=catArr.map(function(d,i){
     var pct=Math.round(d.v/tot*100);var col=COLS[i%COLS.length];
     return'<div style="margin-bottom:12px">'
       +'<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
       +'<span style="font-size:12px;color:var(--tx2)">'+es(d.n)+'</span>'
-      +'<span style="font-size:12px;font-weight:700;color:var(--tx)">'+pct+'% · '+fmt(d.v)+'</span>'
+      +'<span style="font-size:12px;font-weight:700;color:var(--tx)">'+pct+'% \xb7 '+fmt(d.v)+'</span>'
       +'</div>'
       +'<div class="prg-bg"><div class="prg-fill" style="width:'+pct+'%;background:'+col+'"></div></div>'
       +'</div>';
   }).join("");
   var recRows=rec.slice().sort(function(a,b){return(b.date||"").localeCompare(a.date||"");}).map(function(r){
-    return'<tr><td>'+fdt(r.date)+'</td><td style="color:var(--tx)">'+es(r.descricao)+'</td>'
-      +'<td>'+es(r.categoria||"")+'</td><td class="hi">+'+fmt(r.valor)+'</td>'
-      +'<td><button class="eb" onclick="openLanc(\''+r.id+'\')>✏️</button></td></tr>';
+    var isCom=catsRec.indexOf(r.categoria)>=0&&r.pessoa!==nome;
+    return'<tr><td>'+fdt(r.date)+'</td><td style="color:var(--tx)">'+es(r.descricao)
+      +(isCom?' <span style="font-size:9px;background:#0c4a6e;color:#7dd3fc;padding:1px 5px;border-radius:8px">comiss\xe3o</span>':'')
+      +'</td><td>'+es(r.categoria||"")+'</td><td class="hi">+'+fmt(r.valor)+'</td>'
+      +'<td><button class="eb" onclick="openLanc(\''+r.id+'\')">&#9998;</button></td></tr>';
   }).join("");
-  var despRows=desp.slice().sort(function(a,b){return(b.date||"").localeCompare(a.date||"");}).map(function(r){
+  var despRows=despProp.slice().sort(function(a,b){return(b.date||"").localeCompare(a.date||"");}).map(function(r){
     return'<tr><td>'+fdt(r.date)+'</td><td style="color:var(--tx)">'+es(r.descricao)+'</td>'
       +'<td>'+es(r.categoria||"")+'</td><td style="font-size:11px;color:var(--tx3)">'+es(r.formaPagamento||"")+'</td>'
-      +'<td class="neg">−'+fmt(r.valor)+'</td>'
-      +'<td><button class="eb" onclick="openLanc(\''+r.id+'\')>✏️</button></td></tr>';
+      +'<td class="neg">\u2212'+fmt(r.valor)+'</td>'
+      +'<td><button class="eb" onclick="openLanc(\''+r.id+'\')">&#9998;</button></td></tr>';
+  }).join("");
+  var casaRows=despCasa.slice().sort(function(a,b){return(b.date||"").localeCompare(a.date||"");}).map(function(r){
+    return'<tr><td>'+fdt(r.date)+'</td><td style="color:var(--tx)">'+es(r.descricao)+'</td>'
+      +'<td>'+es(r.categoria||"")+'</td><td style="font-size:11px;color:var(--tx3)">'+es(r.formaPagamento||"")+'</td>'
+      +'<td class="neg">\u2212'+fmt(r.valor/2)+' <span style="font-size:9px;color:var(--tx3)">\xf72</span></td>'
+      +'<td><button class="eb" onclick="openLanc(\''+r.id+'\')">&#9998;</button></td></tr>';
   }).join("");
   var fixRows=fixosCasa.map(function(f){
     return'<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--bd)">'
-      +'<span style="font-size:12px;color:var(--tx2)">'+es(f.desc)+'<span style="font-size:10px;color:var(--tx3);margin-left:6px">÷ 2</span></span>'
-      +'<span style="font-size:13px;font-weight:700;color:var(--red)">−'+fmt(f.valor/2)+'</span></div>';
+      +'<span style="font-size:12px;color:var(--tx2)">'+es(f.desc)+'<span style="font-size:10px;color:var(--tx3);margin-left:6px">\xf72</span></span>'
+      +'<span style="font-size:13px;font-weight:700;color:var(--red)">\u2212'+fmt(f.valor/2)+'</span></div>';
   }).join("");
-  return'<div class="pg"><div class="ph"><h2>'+emoji+' '+nome+' — '+nomeMes()+'</h2>'
-    +'<button class="ab" onclick="openLanc()">＋ Lançamento</button></div>'
+  return'<div class="pg"><div class="ph"><h2>'+emoji+' '+nome+' \u2014 '+nomeMes()+'</h2>'
+    +'<button class="ab" onclick="openLanc()">\uff0b Lan\xe7amento</button></div>'
     +'<div class="kg">'
-    +kp("Receitas Lançadas",fmt(tR),rec.length+" lançamentos","#22c55e")
-    +kp("Fixos (sua metade)",fmt(metadeFixos),"automático ÷ 2","#f87171")
-    +kp("Gastos Variáveis",fmt(tVar),desp.length+" lançamentos","#fbbf24")
-    +kp("SALDO INDIVIDUAL",fmt(saldo),saldo>=0?"✅ sobrou":"⚠️ negativo",corS)
+    +kp("Receitas",fmt(tR),rec.length+" lan\xe7amentos","#22c55e")
+    +kp("Fixos (sua metade)",fmt(metadeFixos),"autom\xe1tico \xf72","#f87171")
+    +kp("Gastos Pr\xf3prios",fmt(tProp),despProp.length+" itens","#fbbf24")
+    +kp("Casa (sua metade)",fmt(tCasaMetade),despCasa.length+" itens \xf72","#fb923c")
+    +kp("SALDO INDIVIDUAL",fmt(saldo),saldo>=0?"\u2705 sobrou":"\u26a0\ufe0f negativo",corS)
     +'</div>'
     +'<div class="g2" style="gap:12px">'
     +'<div>'
-    +'<div class="cd"><div class="ct" style="color:#22c55e">📥 Receitas de '+nome+'</div>'
+    +'<div class="cd"><div class="ct" style="color:#22c55e">\ud83d\udce5 Receitas de '+nome+' (Sal\xe1rio + Comiss\xf5es)</div>'
     +(rec.length
-      ?'<div class="ox"><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th style="text-align:right">Valor</th><th></th></tr></thead><tbody>'+recRows+'</tbody></table></div>'
-      :'<div style="padding:10px 0"><div style="font-size:13px;color:var(--tx2)">Salário referência: <b style="color:#22c55e">'+fmt(salRef)+'</b></div>'
-      +'<div style="font-size:11px;color:var(--tx3);margin-top:4px">Lance com Pessoa = '+nome+' para contabilizar</div></div>')
-    +'<button onclick="openLancRec(\''+nome+'\') style="margin-top:10px;cursor:pointer;background:#052e16;color:#86efac;border:1px solid #166534;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:600">＋ Lançar Salário / Comissão</button>'
+      ?'<div class="ox"><table><thead><tr><th>Data</th><th>Descri\xe7\xe3o</th><th>Categoria</th><th style="text-align:right">Valor</th><th></th></tr></thead><tbody>'+recRows+'</tbody></table></div>'
+      :'<div style="padding:10px 0"><div style="font-size:13px;color:var(--tx2)">Sal\xe1rio refer\xeancia: <b style="color:#22c55e">'+fmt(salRef)+'</b></div>'
+      +'<div style="font-size:11px;color:var(--tx3);margin-top:4px">Lance com Pessoa = '+nome+' ou categoria de comiss\xe3o</div></div>')
+    +'<button onclick="openLancRec(\''+nome+'\')" style="margin-top:10px;cursor:pointer;background:#052e16;color:#86efac;border:1px solid #166534;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:600">\uff0b Sal\xe1rio / Comiss\xe3o</button>'
     +'</div>'
-    +'<div class="cd"><div class="ct" style="color:var(--red)">📌 Fixos de Casa (sua metade)</div>'
+    +'<div class="cd"><div class="ct" style="color:var(--red)">\ud83d\udccc Fixos de Casa (sua metade)</div>'
     +fixRows
-    +'<div style="display:flex;justify-content:space-between;padding-top:10px;margin-top:4px;border-top:1px solid var(--bd)"><span style="font-size:12px;color:var(--tx2)">Total sua parte</span><span style="font-weight:700;color:var(--red)">−'+fmt(metadeFixos)+'</span></div>'
-    +'<div style="font-size:10px;color:var(--tx3);margin-top:6px">Os fixos da Mamãe são cobertos pela receita dela (LOAS + irmão)</div>'
+    +'<div style="display:flex;justify-content:space-between;padding-top:10px;margin-top:4px;border-top:1px solid var(--bd)"><span style="font-size:12px;color:var(--tx2)">Total sua parte</span><span style="font-weight:700;color:var(--red)">\u2212'+fmt(metadeFixos)+'</span></div>'
+    +'<div style="font-size:10px;color:var(--tx3);margin-top:6px">Fixos da Mam\xe3e (cuidadora etc.) cobertos por LOAS + irm\xe3o</div>'
     +'</div>'
     +'</div>'
     +'<div>'
-    +'<div class="cd"><div class="ct">📊 Gastos Variáveis por Categoria</div>'
-    +(pctBlock||'<div class="emp">Nenhum gasto pessoal lançado</div>')+'</div>'
-    +(catArr.length?'<div class="cd"><div class="ct">Distribuição Visual</div>'+piC(catArr)+'</div>':'')
+    +'<div class="cd"><div class="ct">\ud83d\udcca Percentual por Categoria</div>'
+    +(pctBlock||'<div class="emp">Nenhum gasto lan\xe7ado</div>')+'</div>'
+    +(catArr.length?'<div class="cd"><div class="ct">Distribui\xe7\xe3o Visual</div>'+piC(catArr)+'</div>':'')
     +'</div>'
     +'</div>'
     +'<div class="dl-bloco" style="margin-top:4px"><div class="dl-total" style="border-top:none;padding:16px">'
-    +'<div><div style="font-size:11px;color:var(--tx3)">SALDO INDIVIDUAL — '+nome+'</div>'
-    +'<div style="font-size:10px;color:var(--tx3)">Receitas − Metade fixos casa − Gastos variáveis</div></div>'
+    +'<div><div style="font-size:11px;color:var(--tx3)">SALDO \u2014 '+nome+'</div>'
+    +'<div style="font-size:10px;color:var(--tx3)">Receitas \u2212 Fixos\xf72 \u2212 Gastos pr\xf3prios \u2212 Casa\xf72</div></div>'
     +'<span style="font-size:22px;font-weight:800;color:'+corS+'">'+fmt(saldo)+'</span></div></div>'
-    +(desp.length
-      ?'<div class="cd"><div class="ct">Lançamentos Detalhados</div>'
-      +'<div class="ox"><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Pgto</th><th style="text-align:right">Valor</th><th></th></tr></thead><tbody>'
-      +despRows+'</tbody></table></div></div>'
-      :'<div class="cd"><div class="emp">Nenhum gasto de '+nome+' lançado neste mês.</div></div>')
+    +(despProp.length?'<div class="cd"><div class="ct">Gastos Pessoais de '+nome+'</div>'
+      +'<div class="ox"><table><thead><tr><th>Data</th><th>Descri\xe7\xe3o</th><th>Categoria</th><th>Pgto</th><th style="text-align:right">Valor</th><th></th></tr></thead><tbody>'
+      +despRows+'</tbody></table></div></div>':"")
+    +(despCasa.length?'<div class="cd"><div class="ct">Gastos de Casa \u2014 sua metade (\xf72)</div>'
+      +'<div class="ox"><table><thead><tr><th>Data</th><th>Descri\xe7\xe3o</th><th>Categoria</th><th>Pgto</th><th style="text-align:right">Sua parte</th><th></th></tr></thead><tbody>'
+      +casaRows+'</tbody></table></div></div>':"")
+    +(despProp.length===0&&despCasa.length===0
+      ?'<div class="cd"><div class="emp">Nenhum gasto de '+nome+' lan\xe7ado neste m\xeas.</div></div>':'')
     +'</div>';
 }
 function openLancRec(nome){openLanc();requestAnimationFrame(function(){requestAnimationFrame(function(){
   tglTipo('receita');
   var ps=document.getElementById('ln-pes');
   if(ps)for(var i=0;i<ps.options.length;i++){if(ps.options[i].value===nome){ps.selectedIndex=i;break;}}
-});});}
+});}); }
 
 
 function rConfig(){
