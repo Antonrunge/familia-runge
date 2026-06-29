@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Finanças — Anton & Josiane</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#22c55e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Finanças">
+<link rel="apple-touch-icon" href="https://placehold.co/192x192/22c55e/ffffff?text=💰">
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
@@ -769,6 +775,13 @@ function delCartao(id){
 // ── EVENTOS ──────────────────────────────────────────────────────────────────
 document.addEventListener("keydown",function(e){if(e.key==="Escape")cmod();});
 document.getElementById("l-pw").addEventListener("keydown",function(e){if(e.key==="Enter")doLogin();});
+// ── PWA SERVICE WORKER ───────────────────────────────────────────────────────
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('sw.js').catch(function(e){console.log('SW:',e);});
+  });
+}
+
 document.getElementById("l-em").addEventListener("keydown",function(e){if(e.key==="Enter")document.getElementById("l-pw").focus();});
 </script>
 </body>
