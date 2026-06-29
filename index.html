@@ -328,7 +328,17 @@ function setupListeners(){
   ltn("lancamentos",function(a){D.lanc=a.sort(function(a,b){return(b.date||"").localeCompare(a.date||"");});});
   ltn("cartoes",function(a){D.cartoes=a;});
   var uf=db.collection("config").doc("fixos").onSnapshot(function(doc){
-    if(doc.exists){D.fixosRec=doc.data().receitas||null;D.fixosDesp=doc.data().despesas||null;}
+    if(doc.exists){
+      var fr=doc.data().receitas||null;
+      var fd=doc.data().despesas||null;
+      // Migração automática: Ajuda do Irmão → pessoa Mamãe
+      if(fr)fr.forEach(function(f){if((f.desc||"").toLowerCase().indexOf("irm")>=0)f.pessoa="Mamãe";});
+      D.fixosRec=fr;D.fixosDesp=fd;
+      // Persiste a migração no Firestore para não depender de migração a cada load
+      if(fr&&fr.some(function(f){return(f.desc||"").toLowerCase().indexOf("irm")>=0&&f.pessoa==="Mamãe";})){
+        db.collection("config").doc("fixos").update({receitas:fr}).catch(function(){});
+      }
+    }
     rT();
   });
   _ls.push(uf);
